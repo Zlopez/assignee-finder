@@ -55,6 +55,7 @@ def get_tickets(config: dict):
             for issue in github_users_tickets[github_user]["issues"]:
                 click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
 
+        click.echo("")
 
 def get_pagure_tickets(users: List[str]) -> dict:
     """
