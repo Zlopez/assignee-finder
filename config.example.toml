@@ -1,0 +1,30 @@
+# Example config for assignee-finder
+
+# General section
+[General]
+usernames = [  # List of usernames you want to find
+  "user1",
+  "user2"
+]
+
+# Pagure section
+[Pagure]
+enable = true  # Enable/Disable Pagure backend
+pagure_url = "https://pagure.io/" # URL for pagure endpoint
+
+# Mapping of usernames from general section to pagure usernames
+[Pagure.usernames]
+user1 = "pagure_user1"
+user2 = "pagure_user2"
+
+# GitHub section
+[GitHub]
+enable = true  # Enable/Disable GitHub backend
+github_api_url = "https://api.github.com/graphql" # URL for GitHub API
+# Personnel API token for GitHub. See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+github_api_token = "token"
+
+# Mapping of usernames from general section to GitHub usernames
+[GitHub.usernames]
+user1 = "github_user1"
+user2 = "github_user2"

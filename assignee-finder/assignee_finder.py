@@ -3,15 +3,13 @@ This script will obtain all issues assigned to list of users.
 """
 from typing import List
 import json
+import tomllib
 
 import click
 import requests
 
-
-PAGURE_URL="https://pagure.io/"
-GITHUB_API_URL="https://api.github.com/graphql"
-GITHUB_API_TOKEN=""
-
+# Global variable containing config
+CONFIG = {}
 
 @click.group()
 def cli():
@@ -19,24 +17,35 @@ def cli():
 
 
 @click.command()
-def get_tickets():
+@click.option("--config", default="config.toml", help="Path to configuration file to use")
+def get_tickets(config: dict):
     """
     Get open tickets assigned to list of users.
+
+    Params:
+      config: Path to configuration file
     """
-    pagure_users = ["zlopez"]
-    pagure_users_tickets = get_pagure_tickets(pagure_users)
+    global CONFIG
 
-    for user in pagure_users_tickets.keys():
-        click.echo("Issues assigned to '{}' ({}):".format(user, pagure_users_tickets[user]["total"]))
-        for issue in pagure_users_tickets[user]["issues"]:
-            click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+    with open(config, "rb") as config_file:
+        CONFIG = tomllib.load(config_file)
 
-    github_users = ["zlopez"]
-    github_users_tickets = get_github_tickets(github_users)
-    for user in github_users_tickets.keys():
-        click.echo("Issues assigned to '{}' ({}):".format(user, github_users_tickets[user]["total"]))
-        for issue in github_users_tickets[user]["issues"]:
-            click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+    if CONFIG["Pagure"]["enable"]:
+        pagure_users = CONFIG["Pagure"]["usernames"].values()
+        pagure_users_tickets = get_pagure_tickets(pagure_users)
+
+        for user in pagure_users_tickets.keys():
+            click.echo("Issues assigned to '{}' ({}):".format(user, pagure_users_tickets[user]["total"]))
+            for issue in pagure_users_tickets[user]["issues"]:
+                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+
+    if CONFIG["GitHub"]["enable"]:
+        github_users = CONFIG["GitHub"]["usernames"].values()
+        github_users_tickets = get_github_tickets(github_users)
+        for user in github_users_tickets.keys():
+            click.echo("Issues assigned to '{}' ({}):".format(user, github_users_tickets[user]["total"]))
+            for issue in github_users_tickets[user]["issues"]:
+                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
 
 
 def get_pagure_tickets(users: List[str]) -> dict:
@@ -66,7 +75,7 @@ def get_pagure_tickets(users: List[str]) -> dict:
     """
     output = {}
     for user in users:
-        next_page = PAGURE_URL + "api/0/user/" + user + "/issues?status=Open&author=False"
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/user/" + user + "/issues?status=Open&author=False"
 
         data = {
             "issues": [],
@@ -124,9 +133,9 @@ def get_github_tickets(users: List[str]) -> dict:
 }}
         """
 
-        headers = {"Authorization": f"bearer {GITHUB_API_TOKEN}"}
+        headers = {"Authorization": f"bearer {CONFIG['GitHub']['github_api_token']}"}
         resp = requests.post(
-            GITHUB_API_URL,
+            CONFIG["GitHub"]["github_api_url"],
             json={"query": query},
             headers=headers
         )
