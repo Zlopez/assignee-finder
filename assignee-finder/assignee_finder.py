@@ -22,12 +22,40 @@ def get_tickets():
     Get open tickets assigned to list of users.
     """
     pagure_users = ["zlopez"]
-    get_pagure_tickets(pagure_users)
+    pagure_user_tickets = get_pagure_tickets(pagure_users)
+
+    for user in pagure_user_tickets.keys():
+        click.echo("Issues assigned to '{}' ({}):".format(user, pagure_user_tickets[user]["total"]))
+        for issue in pagure_user_tickets[user]["issues"]:
+            click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+
 
 def get_pagure_tickets(users: List[str]) -> dict:
     """
     Get tickets assigned to list of users from pagure.io.
+
+    Params:
+      users: List of users to retrieve tickets for
+
+    Returns:
+      Dictionary containing issues with data we care about.
+
+    Example output::
+      {
+        "user": {  # username from the list of users
+          "issues": [
+            {
+              0: { # Id of the issue
+                "title": "Title", # Title of the issue
+                "full_url": "https://pagure.io/project/issue", # Full url to the issue
+              },
+            },
+          ],
+          "total": 1,  # Total number of issues retrieved
+        }
+      }
     """
+    output = {}
     for user in users:
         next_page = PAGURE_URL + "api/0/user/" + user + "/issues?status=Open&author=False"
 
@@ -42,9 +70,34 @@ def get_pagure_tickets(users: List[str]) -> dict:
             data["total"] = data["total"] + page_data["total"]
             next_page = page_data["next_page"]
 
-        click.echo("Issues assigned to '{}' ({}):".format(user, data["total"]))
-        for issue in data["issues"]:
-            click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+        output[user] = data
+
+    return output
+
+
+def get_github_tickets(users: List[str]) -> dict:
+    """
+    Get tickets assigned to list of users from github.com.
+
+    Params:
+      users: List of users to retrieve tickets for
+
+    Returns:
+      Dictionary containing issues with data we care about.
+
+    Example output::
+      {
+        "issues": [
+          {
+            0: { # Id of the issue
+              "title": "Title", # Title of the issue
+              "full_url": "https://pagure.io/project/issue", # Full url to the issue
+            },
+          },
+        ],
+        "total": 1,  # Total number of issues retrieved
+      }
+    """
 
 
 def get_page_data(url: str):
@@ -58,7 +111,6 @@ def get_page_data(url: str):
       Dictionary containing issues with data we care about.
 
     Example output::
-      # if closed is set to True
       {
         "issues": [
           {
