@@ -41,17 +41,17 @@ def get_tickets(config: dict):
         github_users_tickets = get_github_tickets(github_users)
 
     for user in CONFIG["General"]["usernames"]:
-        click.echo("#Issues assigned to '{}'\n".format(user))
+        click.echo("# Issues assigned to '{}'\n".format(user))
         if pagure_enabled:
             pagure_user = CONFIG["Pagure"]["usernames"][user]
-            click.echo("##Pagure ({})\n".format(pagure_users_tickets[pagure_user]["total"]))
+            click.echo("## Pagure ({})\n".format(pagure_users_tickets[pagure_user]["total"]))
             for issue in pagure_users_tickets[pagure_user]["issues"]:
                 click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
             click.echo("")
 
         if github_enabled:
             github_user = CONFIG["Pagure"]["usernames"][user]
-            click.echo("##GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
+            click.echo("## GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
             for issue in github_users_tickets[github_user]["issues"]:
                 click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
 
