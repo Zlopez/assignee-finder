@@ -50,7 +50,7 @@ def get_tickets(config: dict):
             click.echo("")
 
         if github_enabled:
-            github_user = CONFIG["Pagure"]["usernames"][user]
+            github_user = CONFIG["GitHub"]["usernames"][user]
             click.echo("## GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
             for issue in github_users_tickets[github_user]["issues"]:
                 click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
