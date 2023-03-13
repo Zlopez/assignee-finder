@@ -30,21 +30,29 @@ def get_tickets(config: dict):
     with open(config, "rb") as config_file:
         CONFIG = tomllib.load(config_file)
 
-    if CONFIG["Pagure"]["enable"]:
+    pagure_enabled = CONFIG["Pagure"]["enable"]
+    if pagure_enabled:
         pagure_users = CONFIG["Pagure"]["usernames"].values()
         pagure_users_tickets = get_pagure_tickets(pagure_users)
 
-        for user in pagure_users_tickets.keys():
-            click.echo("Issues assigned to '{}' ({}):".format(user, pagure_users_tickets[user]["total"]))
-            for issue in pagure_users_tickets[user]["issues"]:
-                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
-
-    if CONFIG["GitHub"]["enable"]:
+    github_enabled = CONFIG["GitHub"]["enable"]
+    if github_enabled:
         github_users = CONFIG["GitHub"]["usernames"].values()
         github_users_tickets = get_github_tickets(github_users)
-        for user in github_users_tickets.keys():
-            click.echo("Issues assigned to '{}' ({}):".format(user, github_users_tickets[user]["total"]))
-            for issue in github_users_tickets[user]["issues"]:
+
+    for user in CONFIG["General"]["usernames"]:
+        click.echo("#Issues assigned to '{}'\n".format(user))
+        if pagure_enabled:
+            pagure_user = CONFIG["Pagure"]["usernames"][user]
+            click.echo("##Pagure ({})\n".format(pagure_users_tickets[pagure_user]["total"]))
+            for issue in pagure_users_tickets[pagure_user]["issues"]:
+                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+            click.echo("")
+
+        if github_enabled:
+            github_user = CONFIG["Pagure"]["usernames"][user]
+            click.echo("##GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
+            for issue in github_users_tickets[github_user]["issues"]:
                 click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
 
 
