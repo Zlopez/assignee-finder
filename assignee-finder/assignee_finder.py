@@ -9,6 +9,8 @@ import requests
 
 
 PAGURE_URL="https://pagure.io/"
+GITHUB_API_URL="https://api.github.com/graphql"
+GITHUB_API_TOKEN=""
 
 
 @click.group()
@@ -22,11 +24,18 @@ def get_tickets():
     Get open tickets assigned to list of users.
     """
     pagure_users = ["zlopez"]
-    pagure_user_tickets = get_pagure_tickets(pagure_users)
+    pagure_users_tickets = get_pagure_tickets(pagure_users)
 
-    for user in pagure_user_tickets.keys():
-        click.echo("Issues assigned to '{}' ({}):".format(user, pagure_user_tickets[user]["total"]))
-        for issue in pagure_user_tickets[user]["issues"]:
+    for user in pagure_users_tickets.keys():
+        click.echo("Issues assigned to '{}' ({}):".format(user, pagure_users_tickets[user]["total"]))
+        for issue in pagure_users_tickets[user]["issues"]:
+            click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+
+    github_users = ["zlopez"]
+    github_users_tickets = get_github_tickets(github_users)
+    for user in github_users_tickets.keys():
+        click.echo("Issues assigned to '{}' ({}):".format(user, github_users_tickets[user]["total"]))
+        for issue in github_users_tickets[user]["issues"]:
             click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
 
 
@@ -89,15 +98,61 @@ def get_github_tickets(users: List[str]) -> dict:
       {
         "issues": [
           {
-            0: { # Id of the issue
-              "title": "Title", # Title of the issue
-              "full_url": "https://pagure.io/project/issue", # Full url to the issue
-            },
+            "title": "Title", # Title of the issue
+            "full_url": "https://pagure.io/project/issue", # Full url to the issue
           },
         ],
         "total": 1,  # Total number of issues retrieved
       }
     """
+    output = {}
+    for user in users:
+        # Prepare query for GitHub
+        query = f"""
+{{
+    search (query: "assignee:{user} is:issue is:open", type: ISSUE, first: 50) {{
+        edges {{
+            node {{
+                ... on Issue {{
+                    title
+                    url
+                }}
+            }}
+        }}
+        issueCount
+    }}
+}}
+        """
+
+        headers = {"Authorization": f"bearer {GITHUB_API_TOKEN}"}
+        resp = requests.post(
+            GITHUB_API_URL,
+            json={"query": query},
+            headers=headers
+        )
+        if resp.ok:
+            json_data = resp.json()
+        else:
+            click.echo(
+                f"Github request failed with status '{resp.status_code}': '{resp.reason}'",
+                err=True
+            )
+            return output
+
+        user_data = {}
+        issues = []
+        for edge in json_data["data"]["search"]["edges"]:
+            entry = {
+                "title": edge["node"]["title"],
+                "full_url": edge["node"]["url"]
+            }
+
+            issues.append(entry)
+        user_data["issues"] = issues
+        user_data["total"] = len(issues)
+        output[user] = user_data
+
+    return output
 
 
 def get_page_data(url: str):
@@ -114,10 +169,8 @@ def get_page_data(url: str):
       {
         "issues": [
           {
-            0: { # Id of the issue
-              "title": "Title", # Title of the issue
-              "full_url": "https://pagure.io/project/issue", # Full url to the issue
-            },
+            "title": "Title", # Title of the issue
+            "full_url": "https://pagure.io/project/issue", # Full url to the issue
           },
         ],
         "total": 1,  # Total number of issues retrieved
