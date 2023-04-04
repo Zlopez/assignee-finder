@@ -5,6 +5,7 @@ from typing import List
 import json
 import tomllib
 
+import arrow
 import click
 import requests
 
@@ -17,12 +18,16 @@ def cli():
 
 
 @click.command()
+@click.option("--days-ago", default=7, help="How many days ago to look for open issues.")
+@click.option("--till", default=None, help="Show results till this date. Expects date in DD.MM.YYYY format (31.12.2021).")
 @click.option("--config", default="config.toml", help="Path to configuration file to use")
-def get_tickets(config: dict):
+def get_tickets(days_ago: int, till: str, config: dict):
     """
-    Get open tickets assigned to list of users.
+    Get open and closed tickets assigned to list of users.
 
     Params:
+      days_ago: How many days ago to look for the issues
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
       config: Path to configuration file
     """
     global CONFIG
@@ -33,7 +38,7 @@ def get_tickets(config: dict):
     pagure_enabled = CONFIG["Pagure"]["enable"]
     if pagure_enabled:
         pagure_users = CONFIG["Pagure"]["usernames"].values()
-        pagure_users_tickets = get_pagure_tickets(pagure_users)
+        pagure_users_tickets = get_pagure_tickets(days_ago, till, pagure_users)
 
     github_enabled = CONFIG["GitHub"]["enable"]
     if github_enabled:
@@ -46,7 +51,11 @@ def get_tickets(config: dict):
             pagure_user = CONFIG["Pagure"]["usernames"][user]
             click.echo("## Pagure ({})\n".format(pagure_users_tickets[pagure_user]["total"]))
             for issue in pagure_users_tickets[pagure_user]["issues"]:
-                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+                if issue["status"] == "Open":
+                    click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
+            for issue in pagure_users_tickets[pagure_user]["issues"]:
+                if issue["status"] != "Open":
+                    click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
             click.echo("")
 
         if github_enabled:
@@ -57,11 +66,13 @@ def get_tickets(config: dict):
 
         click.echo("")
 
-def get_pagure_tickets(users: List[str]) -> dict:
+def get_pagure_tickets(days_ago: int, till: str, users: List[str]) -> dict:
     """
     Get tickets assigned to list of users from pagure.io.
 
     Params:
+      days_ago: How many days ago to look for the issues
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
       users: List of users to retrieve tickets for
 
     Returns:
@@ -75,6 +86,7 @@ def get_pagure_tickets(users: List[str]) -> dict:
               0: { # Id of the issue
                 "title": "Title", # Title of the issue
                 "full_url": "https://pagure.io/project/issue", # Full url to the issue
+                "status": Open, # Status of the ticket Open/Closed
               },
             },
           ],
@@ -83,8 +95,15 @@ def get_pagure_tickets(users: List[str]) -> dict:
       }
     """
     output = {}
+
+    if till:
+        till = arrow.get(till, "DD.MM.YYYY")
+    else:
+        till = arrow.utcnow()
+    since_arg = till.shift(days=-days_ago)
+
     for user in users:
-        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/user/" + user + "/issues?status=Open&author=False"
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/user/" + user + "/issues?status=all&author=False&since=" + str(since_arg.int_timestamp)
 
         data = {
             "issues": [],
@@ -92,7 +111,7 @@ def get_pagure_tickets(users: List[str]) -> dict:
         }
 
         while next_page:
-            page_data = get_page_data(next_page)
+            page_data = get_page_data(next_page, till, since_arg)
             data["issues"] = data["issues"] + page_data["issues"]
             data["total"] = data["total"] + page_data["total"]
             next_page = page_data["next_page"]
@@ -173,12 +192,19 @@ def get_github_tickets(users: List[str]) -> dict:
     return output
 
 
-def get_page_data(url: str):
+def get_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow):
     """
     Gets data from the current page returned by pagination.
+    It will filter any issue not closed at time interval specified
+    by since and till parameters.
+    since < closed_at < till
 
     Params:
       url: Url for the page
+      till: Till date for closed issues. This will take in account closed_at
+            key of the issue.
+      since: Since date for closed issues. This will take in account closed_at
+            key of the issue.
 
     Returns:
       Dictionary containing issues with data we care about.
@@ -189,6 +215,7 @@ def get_page_data(url: str):
           {
             "title": "Title", # Title of the issue
             "full_url": "https://pagure.io/project/issue", # Full url to the issue
+            "status": "Closed", # Status of the issue Open/Closed
           },
         ],
         "total": 1,  # Total number of issues retrieved
@@ -205,9 +232,19 @@ def get_page_data(url: str):
         page = r.json()
         #click.echo(json.dumps(page, indent=2))
         for issue in page["issues_assigned"]:
+            # Skip the ticket if any of the dates is not filled
+            if not issue["date_created"]:
+                continue
+            if issue["closed_at"]:
+                # Check if the issue is in relevant time range if closed_at is filled
+                closed_at = arrow.Arrow.fromtimestamp(issue["closed_at"])
+
+                if closed_at < since or closed_at > till:
+                    continue
             entry = {
                 "title": issue["title"],
                 "full_url": issue["full_url"],
+                "status": issue["status"]
             }
 
             data["issues"].append(entry)
