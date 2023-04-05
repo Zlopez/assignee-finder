@@ -36,7 +36,8 @@ def get_tickets(days_ago: int, till: str, config: str):
     pagure.CONFIG = CONFIG
     github.CONFIG = CONFIG
 
-    pagure_enabled = CONFIG["Pagure"]["enable"]
+    #pagure_enabled = CONFIG["Pagure"]["enable"]
+    pagure_enabled = False
     if pagure_enabled:
         pagure_users = CONFIG["Pagure"]["usernames"].values()
         pagure_users_tickets = pagure.get_pagure_tickets(days_ago, till, pagure_users)
@@ -44,7 +45,7 @@ def get_tickets(days_ago: int, till: str, config: str):
     github_enabled = CONFIG["GitHub"]["enable"]
     if github_enabled:
         github_users = CONFIG["GitHub"]["usernames"].values()
-        github_users_tickets = github.get_github_tickets(github_users)
+        github_users_tickets = github.get_github_tickets(days_ago, till, github_users)
 
     for user in CONFIG["General"]["usernames"]:
         click.echo("# Issues assigned to '{}'\n".format(user))
@@ -63,7 +64,7 @@ def get_tickets(days_ago: int, till: str, config: str):
             github_user = CONFIG["GitHub"]["usernames"][user]
             click.echo("## GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
             for issue in github_users_tickets[github_user]["issues"]:
-                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+                click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
 
         click.echo("")
 

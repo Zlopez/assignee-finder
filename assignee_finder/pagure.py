@@ -11,12 +11,15 @@ import requests
 def get_pagure_tickets(days_ago: int, till: str, users: List[str]) -> dict:
     """
     Get tickets assigned to list of users from pagure.io.
+
     Params:
       days_ago: How many days ago to look for the issues
       till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
       users: List of users to retrieve tickets for
+
     Returns:
       Dictionary containing issues with data we care about.
+
     Example output::
       {
         "user": {  # username from the list of users

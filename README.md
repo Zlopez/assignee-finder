@@ -29,7 +29,7 @@ GitHub backend
 
 Script is executed using poetry.
 
-`poetry run python assignee-finder/assignee_finder.py get-tickets --config <path_to_your_config_file>`
+`poetry run python assignee_finder/main.py get-tickets --config <path_to_your_config_file>`
 
 The output of the script is [Markdown](https://www.markdownguide.org/) compliant:
 ```
@@ -37,15 +37,18 @@ The output of the script is [Markdown](https://www.markdownguide.org/) compliant
 
 ## Pagure (6)
 
-* [Rebasing Fedora Linux 38 Silverblue](https://pagure.io/fedora-magazine-newsroom/issue/175)
-* [Duplicating pungi-fedora config for Bodhi in infra ansible makes it outdated and confusing](https://pagure.io/fedora-infrastructure/issue/10779)
-* [Not able to close PR using API](https://pagure.io/pagure-dist-git/issue/144)
-* [Use Anitya to help Copr with automatic builds](https://pagure.io/cpe-planning/issue/30)
-* [Add support for flathub flatpaks to Anitya and the-new-hotness](https://pagure.io/cpe-planning/issue/25)
-* [Publish to maven](https://pagure.io/pagure-java-client/issue/2)
+* [Rebasing Fedora Linux 38 Silverblue](https://pagure.io/fedora-magazine-newsroom/issue/175) - Open
+* [Duplicating pungi-fedora config for Bodhi in infra ansible makes it outdated and confusing](https://pagure.io/fedora-infrastructure/issue/10779) - Open
+* [Not able to close PR using API](https://pagure.io/pagure-dist-git/issue/144) - Open
+* [Use Anitya to help Copr with automatic builds](https://pagure.io/cpe-planning/issue/30) - Open
+* [Add support for flathub flatpaks to Anitya and the-new-hotness](https://pagure.io/cpe-planning/issue/25) - Open
+* [Publish to maven](https://pagure.io/pagure-java-client/issue/2) - Closed
 
 ## GitHub (2)
 
-* [High priority test issue](https://github.com/Test-zlopez/test_repo/issues/2)
-* [File pull requests instead of attaching patches to Bugzilla](https://github.com/fedora-infra/the-new-hotness/issues/189)
+* [High priority test issue](https://github.com/Test-zlopez/test_repo/issues/2) - OPEN
+* [File pull requests instead of attaching patches to Bugzilla](https://github.com/fedora-infra/the-new-hotness/issues/189) - CLOSED
 ```
+
+To specify the closed tickets interval use `--days-ago` and `till` parameters:
+`poetry run python assignee_finder/main.py get-tickets --days-ago 7 --till "2023-03-07" --config <path_to_your_config_file>`
