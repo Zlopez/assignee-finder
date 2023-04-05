@@ -36,8 +36,7 @@ def get_tickets(days_ago: int, till: str, config: str):
     pagure.CONFIG = CONFIG
     github.CONFIG = CONFIG
 
-    #pagure_enabled = CONFIG["Pagure"]["enable"]
-    pagure_enabled = False
+    pagure_enabled = CONFIG["Pagure"]["enable"]
     if pagure_enabled:
         pagure_users = CONFIG["Pagure"]["usernames"].values()
         pagure_users_tickets = pagure.get_pagure_tickets(days_ago, till, pagure_users)
