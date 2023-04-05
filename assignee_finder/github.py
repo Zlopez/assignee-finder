@@ -70,6 +70,7 @@ def get_open_github_tickets(user: str) -> dict:
           },
         ]
     """
+    excludes = CONFIG["GitHub"]["excludes"]
     # Prepare query for GitHub
     query = f"""
 {{
@@ -105,6 +106,16 @@ def get_open_github_tickets(user: str) -> dict:
 
     issues = []
     for edge in json_data["data"]["search"]["edges"]:
+
+        excluded = False
+        for exclude in excludes:
+            if edge["node"]["url"].startswith(exclude):
+                excluded = True
+                break
+
+        if excluded:
+            continue
+
         entry = {
             "title": edge["node"]["title"],
             "full_url": edge["node"]["url"],
@@ -140,6 +151,7 @@ def get_closed_github_tickets(user: str, till: arrow.Arrow, since: arrow.Arrow) 
         },
       ],
     """
+    excludes = CONFIG["GitHub"]["excludes"]
     # Prepare query for GitHub
     query = f"""
 {{
@@ -180,6 +192,15 @@ def get_closed_github_tickets(user: str, till: arrow.Arrow, since: arrow.Arrow) 
 
         # Limit the tickets till the date we want
         if closed_at > till:
+            continue
+
+        excluded = False
+        for exclude in excludes:
+            if edge["node"]["url"].startswith(exclude):
+                excluded = True
+                break
+
+        if excluded:
             continue
 
         entry = {

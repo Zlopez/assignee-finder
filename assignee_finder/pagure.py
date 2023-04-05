@@ -90,6 +90,7 @@ def get_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow):
         "next_page": "https://pagure.io/next_page" # URL for next page
       }
     """
+    excludes = CONFIG["Pagure"]["excludes"]
     r = requests.get(url)
     data = {
         "issues": [],
@@ -102,6 +103,15 @@ def get_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow):
         for issue in page["issues_assigned"]:
             # Skip the ticket if any of the dates is not filled
             if not issue["date_created"]:
+                continue
+
+            excluded = False
+            for exclude in excludes:
+                if issue["full_url"].startswith(exclude):
+                    excluded = True
+                    break
+
+            if excluded:
                 continue
             if issue["closed_at"]:
                 # Check if the issue is in relevant time range if closed_at is filled
