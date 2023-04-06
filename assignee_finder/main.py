@@ -16,7 +16,49 @@ def cli():
 
 
 @click.command()
-@click.option("--days-ago", default=7, help="How many days ago to look for open issues.")
+@click.option("--days-ago", default=7, help="How many days ago to look for issues.")
+@click.option("--till", default=None, help="Show results till this date. Expects date in DD.MM.YYYY format (31.12.2021).")
+@click.option("--config", default="config.toml", help="Path to configuration file to use")
+def get_pull_requests(days_ago: int, till: str, config: str):
+    """
+    Get open and closed pull requests created by list of users.
+
+    Params:
+      days_ago: How many days ago to look for the issues
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
+      config: Path to configuration file
+    """
+    global CONFIG
+
+    with open(config, "rb") as config_file:
+        CONFIG = tomllib.load(config_file)
+
+    pagure.CONFIG = CONFIG
+    github.CONFIG = CONFIG
+
+    pagure_enabled = CONFIG["Pagure"]["enable"]
+    if pagure_enabled:
+        pagure_users = CONFIG["Pagure"]["usernames"].values()
+        pagure_users_prs = pagure.get_pagure_pull_requests(days_ago, till, pagure_users)
+
+    for user in CONFIG["General"]["usernames"]:
+        click.echo("# Issues assigned to '{}'\n".format(user))
+        if pagure_enabled:
+            pagure_user = CONFIG["Pagure"]["usernames"][user]
+            click.echo("## Pagure ({})\n".format(pagure_users_prs[pagure_user]["total"]))
+            for issue in pagure_users_prs[pagure_user]["pull_requests"]:
+                if issue["status"] == "Open":
+                    click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
+            for issue in pagure_users_prs[pagure_user]["pull_requests"]:
+                if issue["status"] != "Open":
+                    click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
+            click.echo("")
+
+        click.echo("")
+
+
+@click.command()
+@click.option("--days-ago", default=7, help="How many days ago to look for pull requests.")
 @click.option("--till", default=None, help="Show results till this date. Expects date in DD.MM.YYYY format (31.12.2021).")
 @click.option("--config", default="config.toml", help="Path to configuration file to use")
 def get_tickets(days_ago: int, till: str, config: str):
@@ -70,6 +112,7 @@ def get_tickets(days_ago: int, till: str, config: str):
 
 def main():
     cli.add_command(get_tickets)
+    cli.add_command(get_pull_requests)
     cli()
 
 if __name__ == "__main__":
