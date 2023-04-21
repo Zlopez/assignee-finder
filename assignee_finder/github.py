@@ -5,6 +5,7 @@ from typing import List
 import json
 
 import arrow
+import click
 import requests
 
 
@@ -212,3 +213,211 @@ def get_closed_github_tickets(user: str, till: arrow.Arrow, since: arrow.Arrow) 
         issues.append(entry)
 
     return issues
+
+
+def get_github_pull_request(days_ago: int, till: str, users: List[str]) -> dict:
+    """
+    Get pull requests assigned to list of users from github.com.
+
+    Params:
+      days_ago: How many days ago to look for the pull requests
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
+      users: List of users to retrieve tickets for
+
+    Returns:
+      Dictionary containing pull requests with data we care about.
+
+    Example output::
+      {
+        "user": {  # username from the list of users
+          "pull_requests": [
+            {
+              "title": "Title", # Title of the issue
+              "full_url": "https://pagure.io/project/issue", # Full url to the issue
+              "status": "OPEN", # Status of the ticket OPEN/CLOSED
+            },
+          ],
+          "total": 1,  # Total number of issues retrieved
+        }
+      }
+    """
+    output = {}
+
+    if till:
+        till = arrow.get(till, "DD.MM.YYYY")
+    else:
+        till = arrow.utcnow()
+    since = till.shift(days=-days_ago)
+
+    for user in users:
+        open_pull_requests = get_open_github_pull_requests(user)
+        closed_pull_requests = get_closed_github_pull_requests(user, till, since)
+
+        user_data = {}
+        user_data["pull_requests"] = open_pull_requests + closed_pull_requests
+        user_data["total"] = len(open_pull_requests) + len(closed_pull_requests)
+        output[user] = user_data
+
+    return output
+
+def get_open_github_pull_requests(user: str) -> dict:
+    """
+    Get open pull requests created by the user.
+
+    Params:
+      user: User to retrieve pull requests for
+
+    Returns:
+      Dictionary containing pull requests with data we care about.
+
+    Example output::
+       [
+          {
+            "title": "Title", # Title of the issue
+            "full_url": "https://github.com/project/issue", # Full url to the pull request
+            "status": "OPEN", # Status of the pull request
+          },
+        ]
+    """
+    excludes = CONFIG["GitHub"]["excludes"]
+    # Prepare query for GitHub
+    query = f"""
+{{
+    search (query: "author:{user} is:pr is:open", type: ISSUE, first: 50) {{
+        edges {{
+            node {{
+                ... on PullRequest {{
+                    title
+                    url
+                    state
+                }}
+            }}
+        }}
+        issueCount
+    }}
+}}
+    """
+
+    headers = {"Authorization": f"bearer {CONFIG['GitHub']['github_api_token']}"}
+    resp = requests.post(
+        CONFIG["GitHub"]["github_api_url"],
+        json={"query": query},
+        headers=headers
+    )
+    if resp.ok:
+        json_data = resp.json()
+    else:
+        click.echo(
+            f"Github request failed with status '{resp.status_code}': '{resp.reason}'",
+            err=True
+        )
+        return []
+
+    pull_requests = []
+    for edge in json_data["data"]["search"]["edges"]:
+
+        excluded = False
+        for exclude in excludes:
+            if edge["node"]["url"].startswith(exclude):
+                excluded = True
+                break
+
+        if excluded:
+            continue
+
+        entry = {
+            "title": edge["node"]["title"],
+            "full_url": edge["node"]["url"],
+            "status": edge["node"]["state"]
+        }
+
+        pull_requests.append(entry)
+
+    return pull_requests
+
+
+def get_closed_github_pull_requests(user: str, till: arrow.Arrow, since: arrow.Arrow) -> dict:
+    """
+    Get closed pull requests created by user closed in specified interval
+    since < closed_at < till.
+
+    Params:
+      user: User to retrieve pull requests for
+      till: Till date for closed issues. This will take in account closed_at
+            key of the issue.
+      since: Since date for closed issues. This will take in account closed_at
+            key of the issue.
+
+    Returns:
+      Dictionary containing pull requests with data we care about.
+
+    Example output::
+      [
+        {
+          "title": "Title", # Title of the issue
+          "full_url": "https://github.com/project/issue", # Full url to the pull request
+          "status": "MERGED", # Status of the pull request
+        },
+      ],
+    """
+    excludes = CONFIG["GitHub"]["excludes"]
+    # Prepare query for GitHub
+    query = f"""
+{{
+    search (query: "author:{user} is:pr closed:>{since.format('YYYY-MM-DD')}", type: ISSUE, first: 50) {{
+        edges {{
+            node {{
+                ... on PullRequest {{
+                    title
+                    url
+                    state
+                    closedAt
+                }}
+            }}
+        }}
+        issueCount
+    }}
+}}
+    """
+
+    headers = {"Authorization": f"bearer {CONFIG['GitHub']['github_api_token']}"}
+    resp = requests.post(
+        CONFIG["GitHub"]["github_api_url"],
+        json={"query": query},
+        headers=headers
+    )
+    if resp.ok:
+        json_data = resp.json()
+    else:
+        click.echo(
+            f"Github request failed with status '{resp.status_code}': '{resp.reason}'",
+            err=True
+        )
+        return []
+
+    pull_requests = []
+    for edge in json_data["data"]["search"]["edges"]:
+        closed_at = arrow.get(edge["node"]["closedAt"])
+
+        # Limit the tickets till the date we want
+        if closed_at > till:
+            continue
+
+        excluded = False
+        for exclude in excludes:
+            if edge["node"]["url"].startswith(exclude):
+                excluded = True
+                break
+
+        if excluded:
+            continue
+
+        entry = {
+            "title": edge["node"]["title"],
+            "full_url": edge["node"]["url"],
+            "status": edge["node"]["state"]
+        }
+
+        pull_requests.append(entry)
+
+    return pull_requests

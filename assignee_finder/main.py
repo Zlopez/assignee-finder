@@ -41,8 +41,13 @@ def get_pull_requests(days_ago: int, till: str, config: str):
         pagure_users = CONFIG["Pagure"]["usernames"].values()
         pagure_users_prs = pagure.get_pagure_pull_requests(days_ago, till, pagure_users)
 
+    github_enabled = CONFIG["GitHub"]["enable"]
+    if github_enabled:
+        github_users = CONFIG["GitHub"]["usernames"].values()
+        github_users_prs = github.get_github_pull_request(days_ago, till, github_users)
+
     for user in CONFIG["General"]["usernames"]:
-        click.echo("# Issues assigned to '{}'\n".format(user))
+        click.echo("# Pull requests authored by '{}'\n".format(user))
         if pagure_enabled:
             pagure_user = CONFIG["Pagure"]["usernames"][user]
             click.echo("## Pagure ({})\n".format(pagure_users_prs[pagure_user]["total"]))
@@ -52,6 +57,14 @@ def get_pull_requests(days_ago: int, till: str, config: str):
             for issue in pagure_users_prs[pagure_user]["pull_requests"]:
                 if issue["status"] != "Open":
                     click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
+
+            click.echo("")
+
+        if github_enabled:
+            github_user = CONFIG["GitHub"]["usernames"][user]
+            click.echo("## GitHub ({})\n".format(github_users_prs[github_user]["total"]))
+            for issue in github_users_prs[github_user]["pull_requests"]:
+                click.echo("* [{}]({}) - {}".format(issue["title"], issue["full_url"], issue["status"]))
             click.echo("")
 
         click.echo("")
