@@ -16,6 +16,69 @@ def cli():
 
 
 @click.command()
+@click.option("--days-ago", default=7, help="How many days ago to look for closed issues/pull-requests in the repo.")
+@click.option("--till", default=None, help="Show results till this date. Expects date in DD.MM.YYYY format (31.12.2021).")
+@click.option("--config", default="config.toml", help="Path to configuration file to use")
+def get_repos(days_ago: int, till: str, config: str):
+    """
+    Get closed pull requests/issues on the specified repositories.
+
+    Params:
+      days_ago: How many days ago to look for closed issues/pull-requests in the repo
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`
+      config: Path to configuration file
+    """
+    global CONFIG
+
+    with open(config, "rb") as config_file:
+        CONFIG = tomllib.load(config_file)
+
+    pagure.CONFIG = CONFIG
+    github.CONFIG = CONFIG
+
+    pagure_enabled = CONFIG["Pagure"]["enable"]
+    github_enabled = CONFIG["GitHub"]["enable"]
+
+    if pagure_enabled:
+        pagure_repos = CONFIG["Pagure"]["repositories"]
+        pagure_issues = pagure.get_pagure_tickets_repos(days_ago, till, pagure_repos)
+        pagure_prs = pagure.get_pagure_pull_requests_repos(days_ago, till, pagure_repos)
+
+    if github_enabled:
+        github_repos = CONFIG["GitHub"]["repositories"]
+        github_issues = github.get_github_tickets_repos(days_ago, till, github_repos)
+        github_prs = github.get_github_pull_requests_repos(days_ago, till, github_repos)
+
+    if pagure_enabled:
+        for repo in pagure_repos:
+            click.echo("# Issues/pull requests on '{}'\n".format(repo))
+            click.echo("## Issues ({})\n".format(pagure_issues[repo]["total"]))
+            for issue in pagure_issues[repo]["issues"]:
+                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+            click.echo("")
+            click.echo("## Pull requests ({})\n".format(pagure_prs[repo]["total"]))
+            for pr in pagure_prs[repo]["pull_requests"]:
+                click.echo("* [{}]({})".format(pr["title"], pr["full_url"]))
+            click.echo("")
+
+        click.echo("")
+
+    if github_enabled:
+        for repo in github_repos:
+            click.echo("# Issues/pull requests on '{}'\n".format(repo))
+            click.echo("## Issues ({})\n".format(github_issues[repo]["total"]))
+            for issue in github_issues[repo]["issues"]:
+                click.echo("* [{}]({})".format(issue["title"], issue["full_url"]))
+            click.echo("")
+            click.echo("## Pull requests ({})\n".format(github_prs[repo]["total"]))
+            for pr in github_prs[repo]["pull_requests"]:
+                click.echo("* [{}]({})".format(pr["title"], pr["full_url"]))
+            click.echo("")
+
+        click.echo("")
+
+
+@click.command()
 @click.option("--days-ago", default=7, help="How many days ago to look for issues.")
 @click.option("--till", default=None, help="Show results till this date. Expects date in DD.MM.YYYY format (31.12.2021).")
 @click.option("--config", default="config.toml", help="Path to configuration file to use")
@@ -124,6 +187,7 @@ def get_tickets(days_ago: int, till: str, config: str):
 
 
 def main():
+    cli.add_command(get_repos)
     cli.add_command(get_tickets)
     cli.add_command(get_pull_requests)
     cli()

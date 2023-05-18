@@ -52,3 +52,19 @@ The output of the script is [Markdown](https://www.markdownguide.org/) compliant
 
 To specify the closed tickets interval use `--days-ago` and `till` parameters:
 `poetry run python assignee_finder/main.py get-tickets --days-ago 7 --till "2023-03-07" --config <path_to_your_config_file>`
+
+# Commands
+
+The script supports following commands:
+
+* `poetry run python assignee_finder/main.py get-tickets`
+
+  Retrieve tickets assigned to list of configured users.
+
+* `poetry run python assignee_finder/main.py get-pull-requests`
+
+  Retrieve pull-requests authored by list of configured users.
+
+* `poetry run python assignee_finder/main.py get-repos`
+
+  Retrieve closed tickets/pull requests for list of configured repositories.

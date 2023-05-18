@@ -7,6 +7,59 @@ import json
 import arrow
 import requests
 
+def get_pagure_pull_requests_repos(days_ago: int, till: str, repos: List[str]) -> dict:
+    """
+    Get closed pull requests on the repositories.
+
+    Params:
+      days_ago: How many days ago to look for the pull requests
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
+      repos: List of repos to retrieve pull requests for
+
+    Returns:
+      Dictionary containing pull requests with data we care about.
+
+    Example output::
+      {
+        "repo": {  # repo from the list of repositories
+          "pull_requests": [
+            {
+              "title": "Title", # Title of the pull_request
+              "full_url": "https://pagure.io/project/issue", # Full url to the pull_request
+              "status": Open, # Status of the pull request Open/Closed
+            },
+          ],
+          "total": 1,  # Total number of pull requests retrieved
+        }
+      }
+    """
+    output = {}
+
+    if till:
+        till = arrow.get(till, "DD.MM.YYYY")
+    else:
+        till = arrow.utcnow()
+    since_arg = till.shift(days=-days_ago)
+
+    # Get open pull requests first
+    for repo in repos:
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/" + repo.removeprefix(CONFIG["Pagure"]["pagure_url"]) + "/pull-requests?status=Closed"
+
+        data = {
+            "pull_requests": [],
+            "total": 0
+        }
+
+        while next_page:
+            page_data = get_pull_requests_page_data(next_page, till, since_arg)
+            data["pull_requests"] = data["pull_requests"] + page_data["pull_requests"]
+            data["total"] = data["total"] + page_data["total"]
+            next_page = page_data["next_page"]
+
+        output[repo] = data
+
+    return output
+
 
 def get_pagure_pull_requests(days_ago: int, till: str, users: List[str]) -> dict:
     """
@@ -128,6 +181,60 @@ def get_pull_requests_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow)
 
     return data
 
+
+def get_pagure_tickets_repos(days_ago: int, till: str, repos: List[str]) -> dict:
+    """
+    Get closed tickets on repositories from pagure.io.
+
+    Params:
+      days_ago: How many days ago to look for the issues
+      till: Limit results to the day set by this argument. Default None will be replaced by `arrow.utcnow()`.
+      repos: List of repositories to retrieve tickets for
+
+    Returns:
+      Dictionary containing issues with data we care about.
+
+    Example output::
+      {
+        "repo": {  # repo from the list of repositories
+          "issues": [
+            {
+              "title": "Title", # Title of the issue
+              "full_url": "https://pagure.io/project/issue", # Full url to the issue
+              "status": Open, # Status of the ticket Open/Closed
+            },
+          ],
+          "total": 1,  # Total number of issues retrieved
+        }
+      }
+    """
+    output = {}
+
+    if till:
+        till = arrow.get(till, "DD.MM.YYYY")
+    else:
+        till = arrow.utcnow()
+    since_arg = till.shift(days=-days_ago)
+
+    for repo in repos:
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/" + repo.removeprefix(CONFIG["Pagure"]["pagure_url"]) + "/issues?status=Closed&since=" + str(since_arg.int_timestamp)
+
+        data = {
+            "issues": [],
+            "total": 0
+        }
+
+        while next_page:
+            page_data = get_issues_page_data(next_page, till, since_arg)
+            data["issues"] = data["issues"] + page_data["issues"]
+            data["total"] = data["total"] + page_data["total"]
+            next_page = page_data["next_page"]
+
+        output[repo] = data
+
+    return output
+
+
 def get_pagure_tickets(days_ago: int, till: str, users: List[str]) -> dict:
     """
     Get tickets assigned to list of users from pagure.io.
@@ -218,7 +325,11 @@ def get_issues_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow) -> dic
     if r.status_code == requests.codes.ok:
         page = r.json()
         #click.echo(json.dumps(page, indent=2))
-        for issue in page["issues_assigned"]:
+        if "issues_assigned" in page:
+            issues = page["issues_assigned"]
+        else:
+            issues = page["issues"]
+        for issue in issues:
             # Skip the ticket if any of the dates is not filled
             if not issue["date_created"]:
                 continue
@@ -244,7 +355,10 @@ def get_issues_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow) -> dic
             }
 
             data["issues"].append(entry)
-        data["next_page"] = page["pagination_issues_assigned"]["next"]
-        data["total"] = len(data["issues"])
+        if "pagination_issues_assigned" in page:
+            data["next_page"] = page["pagination_issues_assigned"]["next"]
+        else:
+            data["next_page"] = page["pagination"]["next"]
+    data["total"] = len(data["issues"])
 
     return data
