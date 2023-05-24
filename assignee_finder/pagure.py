@@ -169,6 +169,7 @@ def get_pull_requests_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow)
 
                 if closed_at < since or closed_at > till:
                     continue
+
             entry = {
                 "title": pull_request["title"],
                 "full_url": full_url,

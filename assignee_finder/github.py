@@ -426,7 +426,7 @@ def get_closed_github_pull_requests_repo(repo: str, till: arrow.Arrow, since: ar
     query = f"""
 {{
     repository (owner: "{owner}", name: "{name}") {{
-        pullRequests (last: 20, states: CLOSED) {{
+        pullRequests (first: 20, states: MERGED, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
             edges {{
                 node {{
                     title
