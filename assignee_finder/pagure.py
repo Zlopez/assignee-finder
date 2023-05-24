@@ -43,7 +43,7 @@ def get_pagure_pull_requests_repos(days_ago: int, till: str, repos: List[str]) -
 
     # Get open pull requests first
     for repo in repos:
-        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/" + repo.removeprefix(CONFIG["Pagure"]["pagure_url"]) + "/pull-requests?status=Closed"
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/" + repo.removeprefix(CONFIG["Pagure"]["pagure_url"]) + "/pull-requests?status=Merged"
 
         data = {
             "pull_requests": [],
