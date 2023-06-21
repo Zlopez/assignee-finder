@@ -271,7 +271,7 @@ def get_pagure_tickets(days_ago: int, till: str, users: List[str]) -> dict:
     since_arg = till.shift(days=-days_ago)
 
     for user in users:
-        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/user/" + user + "/issues?status=all&author=False&since=" + str(since_arg.int_timestamp)
+        next_page = CONFIG["Pagure"]["pagure_url"] + "api/0/user/" + user + "/issues?status=all&author=False"
 
         data = {
             "issues": [],
@@ -343,11 +343,14 @@ def get_issues_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow) -> dic
 
             if excluded:
                 continue
-            if issue["closed_at"]:
-                # Check if the issue is in relevant time range if closed_at is filled
-                closed_at = arrow.Arrow.fromtimestamp(issue["closed_at"])
+            if issue["status"] == "Closed":
+                if issue["closed_at"]:
+                    # Check if the issue is in relevant time range if closed_at is filled
+                    closed_at = arrow.Arrow.fromtimestamp(issue["closed_at"])
 
-                if closed_at < since or closed_at > till:
+                    if closed_at < since or closed_at > till:
+                        continue
+                else:
                     continue
             entry = {
                 "title": issue["title"],
