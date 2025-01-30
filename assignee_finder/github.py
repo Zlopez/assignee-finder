@@ -216,6 +216,9 @@ def get_open_github_tickets(user: str) -> dict:
                     title
                     url
                     state
+                    timelineItems (last: 1, itemTypes: ASSIGNED_EVENT) {{
+                        updatedAt
+                    }}
                 }}
             }}
         }}
@@ -254,7 +257,8 @@ def get_open_github_tickets(user: str) -> dict:
         entry = {
             "title": edge["node"]["title"],
             "full_url": edge["node"]["url"],
-            "status": edge["node"]["state"]
+            "status": edge["node"]["state"],
+            "assigned": edge["node"]["timelineItems"]["updatedAt"]
         }
 
         issues.append(entry)

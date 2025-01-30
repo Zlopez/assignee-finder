@@ -325,7 +325,6 @@ def get_issues_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow) -> dic
 
     if r.status_code == requests.codes.ok:
         page = r.json()
-        #click.echo(json.dumps(page, indent=2))
         if "issues_assigned" in page:
             issues = page["issues_assigned"]
         else:
@@ -352,10 +351,27 @@ def get_issues_page_data(url: str, till: arrow.Arrow, since: arrow.Arrow) -> dic
                         continue
                 else:
                     continue
+
+            # Find the date the user was assigned to issue
+            assigned_at = None
+            for comment in reversed(issue["comments"]):
+                if comment["notification"]:
+                    if "assigned" in comment["comment"]:
+                        assigned_at = comment["date_created"]
+                        break
+
+            # Set assigned_at to creation date of the ticket if not set
+            # We will show it up only for tickets assigned to user anyway
+            # so if missing it means that the user was assigned when ticket
+            # was created
+            if not assigned_at:
+                assigned_at = issue["date_created"]
+
             entry = {
                 "title": issue["title"],
                 "full_url": issue["full_url"],
-                "status": issue["status"]
+                "status": issue["status"],
+                "assigned": assigned_at,
             }
 
             data["issues"].append(entry)
