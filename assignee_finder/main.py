@@ -182,7 +182,7 @@ def get_tickets(days_ago: int, till: str, config: str):
             github_user = CONFIG["GitHub"]["usernames"][user]
             click.echo("## GitHub ({})\n".format(github_users_tickets[github_user]["total"]))
             for issue in github_users_tickets[github_user]["issues"]:
-                click.echo("* [{}]({}) - {} - Assigned on: {}".format(issue["title"], issue["full_url"], issue["status"], issue["assigned"]))
+                click.echo("* [{}]({}) - {} - Assigned on: {}".format(issue["title"], issue["full_url"], issue["status"], issue["assigned"] if "assigned" in issue else "No date"))
 
         click.echo("")
 
