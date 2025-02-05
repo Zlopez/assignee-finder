@@ -216,6 +216,7 @@ def get_open_github_tickets(user: str) -> dict:
                     title
                     url
                     state
+                    createdAt
                     timelineItems (last: 1, itemTypes: ASSIGNED_EVENT) {{
                         updatedAt
                     }}
@@ -258,7 +259,7 @@ def get_open_github_tickets(user: str) -> dict:
             "title": edge["node"]["title"],
             "full_url": edge["node"]["url"],
             "status": edge["node"]["state"],
-            "assigned": edge["node"]["timelineItems"]["updatedAt"]
+            "assigned": edge["node"]["timelineItems"]["updatedAt"] if edge["node"]["timelineItems"]["updatedAt"] else edge["node"]["createdAt"]
         }
 
         issues.append(entry)
@@ -302,6 +303,10 @@ def get_closed_github_tickets(user: str, till: arrow.Arrow, since: arrow.Arrow) 
                     url
                     state
                     closedAt
+                    createdAt
+                    timelineItems (last: 1, itemTypes: ASSIGNED_EVENT) {{
+                        updatedAt
+                    }}
                 }}
             }}
         }}
@@ -345,7 +350,8 @@ def get_closed_github_tickets(user: str, till: arrow.Arrow, since: arrow.Arrow) 
         entry = {
             "title": edge["node"]["title"],
             "full_url": edge["node"]["url"],
-            "status": edge["node"]["state"]
+            "status": edge["node"]["state"],
+            "assigned": edge["node"]["timelineItems"]["updatedAt"] if edge["node"]["timelineItems"]["updatedAt"] else edge["node"]["createdAt"]
         }
 
         issues.append(entry)
